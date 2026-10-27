@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<opml version="2.0">
+  <head>
+    <title>豆瓣 · lyx030605 玩过的游戏</title>
+    <dateCreated>Tue, 27 Oct 2026 05:58:33 GMT</dateCreated>
+  </head>
+  <body>
+    <outline type="rss" text="豆瓣 · lyx030605 玩过的游戏" title="豆瓣 · lyx030605 玩过的游戏"
+             xmlUrl="http://127.0.0.1:8811/lyx030605/played-games.xml" htmlUrl="https://www.douban.com/people/lyx030605/games?action=collect"/>
+  </body>
+</opml>
