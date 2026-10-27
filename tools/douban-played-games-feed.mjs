@@ -173,9 +173,12 @@ function buildContent(game) {
   if (game.subtitle) {
     parts.push(`<p><small>${html(game.subtitle)}</small></p>`);
   }
-  const meta = [game.stars, `玩过 ${game.date}`].filter(Boolean).join(' · ');
-  if (meta) {
-    parts.push(`<p>${html(meta)}</p>`);
+  // 用全角空格分隔，避免「·」在阅读器里显得突兀；也可以换成普通空格
+  const metaHtml = [game.stars && html(game.stars), game.date && html(game.date)]
+    .filter(Boolean)
+    .join('\u3000');
+  if (metaHtml) {
+    parts.push(`<p>${metaHtml}</p>`);
   }
   if (game.comment) {
     parts.push(`<blockquote>${html(game.comment).replace(/\n/g, '<br />')}</blockquote>`);
