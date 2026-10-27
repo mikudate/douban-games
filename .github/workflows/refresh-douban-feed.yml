@@ -1,0 +1,70 @@
+# 每天重建「豆瓣玩过的游戏」RSS，并发布到 GitHub Pages。
+#
+# 站点根目录 = 仓库的 feeds/ 目录，所以订阅地址是：
+#   https://<owner>.github.io/<repo>/lyx030605/played-games.xml
+#
+# 前置：Settings → Pages → Source 选 “GitHub Actions”。
+
+name: refresh-douban-feed
+
+on:
+  schedule:
+    - cron: '0 1 * * *' # 01:00 UTC = 09:00 Asia/Shanghai
+  workflow_dispatch:
+  push:
+    paths:
+      - 'tools/douban-played-games-feed.mjs'
+      - '.github/workflows/refresh-douban-feed.yml'
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: douban-feed
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Regenerate feed
+        run: |
+          node tools/douban-played-games-feed.mjs \
+            --user lyx030605 \
+            --out feeds/lyx030605/played-games.xml \
+            --opml feeds/lyx030605/douban.opml \
+            --feed-url "https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/lyx030605/played-games.xml"
+
+      - name: Commit if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add feeds
+          if git diff --staged --quiet; then
+            echo "no changes"
+          else
+            git commit -m "chore: refresh douban played-games feed"
+            git push
+          fi
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: feeds
+
+  deploy:
+    needs: refresh
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
