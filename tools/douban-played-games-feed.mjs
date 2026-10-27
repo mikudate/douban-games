@@ -1,21 +1,20 @@
 #!/usr/bin/env node
 /**
- * 豆瓣「玩过」游戏 → RSS 2.0
+ * 豆瓣「玩过」游戏 → RSS 2.0（富文本版）
  *
- * douban-skill 本身不生成 RSS（它只做 CSV 同步）。这个脚本复用该 skill
- * douban-frodo-export.py 里同样的 Frodo API 鉴权方式（公开的 App 凭证），
- * 只拉取 game + done 一个分类，输出一个只含「玩过」游戏的标准 RSS 2.0 文件。
+ * 复用 douban-skill 里 douban-frodo-export.py 的 Frodo API 鉴权方式，
+ * 只拉 game + done 一个分类，输出标准 RSS 2.0：封面、评分、短评、豆瓣链接都在条目里。
  *
  * 用法：
  *   node tools/douban-played-games-feed.mjs --user lyx030605 --out feeds/lyx030605/played-games.xml
  *   node tools/douban-played-games-feed.mjs --user lyx030605 --out ... --opml feeds/lyx030605/douban.opml
  *
  * 选项：
- *   --user <id>            豆瓣 ID（必填）
- *   --out <file>           RSS 输出路径
- *   --opml <file>          额外输出可导入阅读器的 OPML
- *   --feed-url <url>       OPML 里登记的订阅地址（默认 http://127.0.0.1:8811/<id>/played-games.xml）
- *   --with-comments        description 里带上短评原文（默认只保留星级）
+ *   --user <id>        豆瓣 ID（必填）
+ *   --out <file>       RSS 输出路径
+ *   --opml <file>      额外输出可导入阅读器的 OPML
+ *   --feed-url <url>   OPML 里登记的订阅地址
+ *   --brief            只输出星级，不带封面/短评/副标题（旧版行为）
  */
 
 import crypto from 'node:crypto';
@@ -44,11 +43,30 @@ if (!USER || !/^[A-Za-z0-9._-]+$/.test(USER)) {
   console.error('用法: node douban-played-games-feed.mjs --user <豆瓣ID> [--out <文件路径>]');
   process.exit(2);
 }
+
 const OUT = path.resolve(arg('out', path.join('feeds', USER, 'played-games.xml')));
-const WITH_COMMENTS = process.argv.includes('--with-comments');
 const OPML_OUT = arg('opml', '');
 const FEED_URL = arg('feed-url', `http://127.0.0.1:8811/${USER}/played-games.xml`);
 const HTML_URL = `https://www.douban.com/people/${USER}/games?action=collect`;
+const BRIEF = process.argv.includes('--brief');
+
+// 封面图有防盗链：不带豆瓣 Referer 会 418。RSS 阅读器不会带 Referer，
+// 所以把封面下载到站点目录里自己托管。CI 里自动开启，本地可用参数覆盖。
+function pagesBase() {
+  const repoFull = process.env.GITHUB_REPOSITORY || '';
+  const [owner, repo] = repoFull.split('/');
+  if (!owner || !repo) return '';
+  return repo.toLowerCase() === `${owner.toLowerCase()}.github.io`
+    ? `https://${repo.toLowerCase()}`
+    : `https://${owner.toLowerCase()}.github.io/${repo.toLowerCase()}`;
+}
+
+const IN_CI = process.env.GITHUB_ACTIONS === 'true';
+const ASSET_BASE = arg('asset-base', IN_CI ? `${pagesBase()}/covers` : '');
+const ASSET_DIR = arg(
+  'asset-dir',
+  IN_CI ? path.join(path.dirname(OUT), '..', 'covers') : ''
+);
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
@@ -102,7 +120,8 @@ async function fetchAllPlayedGames() {
   return items;
 }
 
-// 先解码豆瓣返回的 HTML 实体，再做 XML 转义，避免出现 &amp;amp;
+// --- XML / HTML 工具 ---
+
 function decodeEntities(s) {
   return String(s ?? '')
     .replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(Number(d)))
@@ -124,6 +143,14 @@ function xml(s) {
     .replace(/'/g, '&apos;');
 }
 
+function html(s) {
+  return decodeEntities(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function cdata(s) {
+  return `<![CDATA[${String(s).replaceAll(']]>', ']]&gt;')}]]>`;
+}
+
 function stars(rating) {
   if (!rating || !rating.value) return '';
   const n = rating.max && rating.max > 5 ? Math.round(rating.value / 2) : Math.round(rating.value);
@@ -135,42 +162,128 @@ function rfc822(dateStr) {
   return isNaN(d.getTime()) ? new Date().toUTCString() : d.toUTCString();
 }
 
-const games = await fetchAllPlayedGames();
-const items = games
+// --- 条目 HTML ---
+
+function buildContent(game) {
+  const parts = [];
+  if (game.cover) {
+    parts.push(`<p><img src="${html(game.cover)}" alt="${html(game.title)}" width="140" /></p>`);
+  }
+  parts.push(`<p><strong>${html(game.title)}</strong></p>`);
+  if (game.subtitle) {
+    parts.push(`<p><small>${html(game.subtitle)}</small></p>`);
+  }
+  const meta = [game.stars, `玩过 ${game.date}`].filter(Boolean).join(' · ');
+  if (meta) {
+    parts.push(`<p>${html(meta)}</p>`);
+  }
+  if (game.comment) {
+    parts.push(`<blockquote>${html(game.comment).replace(/\n/g, '<br />')}</blockquote>`);
+  }
+  parts.push(`<p><a href="${html(game.url)}">在豆瓣打开</a></p>`);
+  return parts.join('\n');
+}
+
+const raw = await fetchAllPlayedGames();
+const games = raw
   .map(it => {
     const s = it.subject || {};
     const url = s.id ? `https://www.douban.com/game/${s.id}/` : (s.url || '');
     return {
+      id: s.id ? String(s.id) : '',
       title: s.title || '(无标题)',
       url,
+      cover: s.cover_url || '',
+      subtitle: s.card_subtitle || '',
       date: (it.create_time || '').slice(0, 10),
-      rating: stars(it.rating),
-      comment: it.comment || '',
+      stars: stars(it.rating),
+      comment: (it.comment || '').trim(),
     };
   })
   .filter(g => g.url)
   .sort((a, b) => (a.date < b.date ? 1 : -1));
 
-console.log(`\n生成 RSS，共 ${items.length} 条`);
+// --- 封面本地化（绕过豆瓣防盗链）---
+function fetchBinary(url, referer, redirects = 0) {
+  return new Promise((resolve, reject) => {
+    if (redirects > 3) return reject(new Error('too many redirects'));
+    const req = https.get(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/126.0.0.0', Referer: referer },
+      timeout: 20000,
+    }, res => {
+      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+        res.resume();
+        return fetchBinary(res.headers.location, referer, redirects + 1).then(resolve, reject);
+      }
+      if (res.statusCode !== 200) {
+        res.resume();
+        return reject(new Error(`HTTP ${res.statusCode}`));
+      }
+      const chunks = [];
+      res.on('data', c => chunks.push(c));
+      res.on('end', () => resolve(Buffer.concat(chunks)));
+    });
+    req.on('error', reject);
+    req.on('timeout', () => { req.destroy(); reject(new Error('timeout')); });
+  });
+}
+
+if (ASSET_DIR) {
+  const dir = path.resolve(ASSET_DIR);
+  fs.mkdirSync(dir, { recursive: true });
+  const todo = games.filter(g => g.id && g.cover);
+  let downloaded = 0;
+  let failed = 0;
+
+  for (let i = 0; i < todo.length; i += 6) {
+    const batch = todo.slice(i, i + 6);
+    await Promise.all(batch.map(async g => {
+      const file = path.join(dir, `${g.id}.jpg`);
+      if (!fs.existsSync(file) || fs.statSync(file).size === 0) {
+        try {
+          const buf = await fetchBinary(g.cover, 'https://movie.douban.com/');
+          fs.writeFileSync(file, buf);
+          downloaded++;
+        } catch (e) {
+          failed++;
+          return; // 下载失败就继续用豆瓣原图
+        }
+      }
+      g.cover = ASSET_BASE ? `${ASSET_BASE}/${g.id}.jpg` : g.cover;
+    }));
+  }
+  console.log(`封面: 新增 ${downloaded} 张，失败 ${failed} 张，目录 ${dir}`);
+}
+
+console.log(`\n生成 RSS，共 ${games.length} 条（${BRIEF ? '精简：仅星级' : '富文本：封面 + 短评 + 链接'}）`);
 
 const now = new Date().toUTCString();
-const body = items
+const items = games
   .map(g => {
-    const desc = [g.rating, WITH_COMMENTS ? g.comment : ''].filter(Boolean).join(' ');
+    const description = BRIEF ? xml(g.stars) : cdata(buildContent(g));
+    const enclosure = g.cover
+      ? `    <enclosure url="${xml(g.cover)}" type="image/jpeg" length="0"/>\n    <media:content url="${xml(g.cover)}" medium="image"/>\n    <media:thumbnail url="${xml(g.cover)}"/>\n`
+      : '';
+    const contentEncoded = BRIEF ? '' : `    <content:encoded>${cdata(buildContent(g))}</content:encoded>\n`;
     return [
       '  <item>',
       `    <title>${xml(g.title)}</title>`,
       `    <link>${xml(g.url)}</link>`,
       `    <guid isPermaLink="true">${xml(g.url)}</guid>`,
       `    <pubDate>${rfc822(g.date)}</pubDate>`,
-      `    <description>${xml(desc)}</description>`,
+      `    <description>${description}</description>`,
+      contentEncoded.trimEnd(),
+      enclosure.trimEnd(),
       '  </item>',
-    ].join('\n');
+    ].filter(l => l !== '').join('\n');
   })
   .join('\n');
 
 const feed = `<?xml version="1.0" encoding="UTF-8"?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+<rss version="2.0"
+     xmlns:atom="http://www.w3.org/2005/Atom"
+     xmlns:content="http://purl.org/rss/1.0/modules/content/"
+     xmlns:media="http://search.yahoo.com/mrss/">
   <channel>
     <title>豆瓣玩过的游戏 · ${xml(USER)}</title>
     <link>${xml(HTML_URL)}</link>
@@ -178,7 +291,7 @@ const feed = `<?xml version="1.0" encoding="UTF-8"?>
     <language>zh-CN</language>
     <lastBuildDate>${now}</lastBuildDate>
     <atom:link href="${xml(FEED_URL)}" rel="self" type="application/rss+xml"/>
-${body}
+${items}
   </channel>
 </rss>
 `;
