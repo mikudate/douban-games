@@ -8,8 +8,29 @@
     <link>https://www.douban.com/people/lyx030605/games?action=collect</link>
     <description>从豆瓣 Frodo 接口抓取的「玩过」游戏收藏，仅含 game + done。</description>
     <language>zh-CN</language>
-    <lastBuildDate>Tue, 27 Oct 2026 07:01:54 GMT</lastBuildDate>
+    <lastBuildDate>Wed, 28 Oct 2026 06:26:34 GMT</lastBuildDate>
     <atom:link href="https://mikudate.github.io/douban-games/lyx030605/played-games.xml" rel="self" type="application/rss+xml"/>
+  <item>
+    <title>Zombie exodus: safe haven</title>
+    <link>https://www.douban.com/game/39009040/</link>
+    <guid isPermaLink="true">https://www.douban.com/game/39009040/</guid>
+    <pubDate>Mon, 26 Oct 2026 16:00:00 GMT</pubDate>
+    <description><![CDATA[<p><img src="https://mikudate.github.io/douban-games/covers/39009040.jpg" alt="Zombie exodus: safe haven" width="140" /></p>
+<p><strong>Zombie exodus: safe haven</strong></p>
+<p><small>文字冒险/角色扮演/PC/Mac/Linux/iPhone/iPad/Android/Windows Phone/2016-10-28</small></p>
+<p>★★　2026-10-27</p>
+<blockquote>22.6小时，2.5/5。游戏初期非常美味但我建议只买本体+part2那个dlc，因为后面的剧情就很车轱辘话了我拖了大半年陆陆续续才打完。<br />游戏本体part1自由度挺高的，而且mc的身份性格自定义程度很高，还可以到处翻垃圾桶找物资。part1甚至主角睡觉时间的早晚都会影响后面的某个事件和长线的队友招募，但到后面很多队友下线是强制剧情杀，新队友也是强行塞进队里。<br />part3只横向拓展了一些琐碎的小支线。part4结尾突然强行大幅度快进时间线然后留一个悬念。<br />到后面发现作者叙事短板非常严重，作者只会写那种你问一句我答一句的对话，非常非常机械，mc的选择不起什么作用。mc总是在偶遇一大堆npc，每次问他们一长串问题，结果mc再也不会遇见他们第二次。</blockquote>
+<p><a href="https://www.douban.com/game/39009040/">在豆瓣打开</a></p>]]></description>
+    <content:encoded><![CDATA[<p><img src="https://mikudate.github.io/douban-games/covers/39009040.jpg" alt="Zombie exodus: safe haven" width="140" /></p>
+<p><strong>Zombie exodus: safe haven</strong></p>
+<p><small>文字冒险/角色扮演/PC/Mac/Linux/iPhone/iPad/Android/Windows Phone/2016-10-28</small></p>
+<p>★★　2026-10-27</p>
+<blockquote>22.6小时，2.5/5。游戏初期非常美味但我建议只买本体+part2那个dlc，因为后面的剧情就很车轱辘话了我拖了大半年陆陆续续才打完。<br />游戏本体part1自由度挺高的，而且mc的身份性格自定义程度很高，还可以到处翻垃圾桶找物资。part1甚至主角睡觉时间的早晚都会影响后面的某个事件和长线的队友招募，但到后面很多队友下线是强制剧情杀，新队友也是强行塞进队里。<br />part3只横向拓展了一些琐碎的小支线。part4结尾突然强行大幅度快进时间线然后留一个悬念。<br />到后面发现作者叙事短板非常严重，作者只会写那种你问一句我答一句的对话，非常非常机械，mc的选择不起什么作用。mc总是在偶遇一大堆npc，每次问他们一长串问题，结果mc再也不会遇见他们第二次。</blockquote>
+<p><a href="https://www.douban.com/game/39009040/">在豆瓣打开</a></p>]]></content:encoded>
+    <enclosure url="https://mikudate.github.io/douban-games/covers/39009040.jpg" type="image/jpeg" length="0"/>
+    <media:content url="https://mikudate.github.io/douban-games/covers/39009040.jpg" medium="image"/>
+    <media:thumbnail url="https://mikudate.github.io/douban-games/covers/39009040.jpg"/>
+  </item>
   <item>
     <title>Hunter Hunted</title>
     <link>https://www.douban.com/game/39006766/</link>
